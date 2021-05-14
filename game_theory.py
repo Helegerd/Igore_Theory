@@ -205,12 +205,12 @@ def getArrForAct(arr, action, ind):
 def getAnsFormatText(form='min'):
     '''возвращает тект для вопроса о формате вывода'''
     # ['min', 'max', 'minmax', 'anytwo', 'anyone', 'num']
-    return {'min': 'Укажите, при каком минимальном значении S это возможно.',
-            'max': 'Укажите, при каком максимальном значении S это возможно.',
-            'minmax': 'Укажите в порядке возрастания, при каких наименьшем и наибольшем значениях S это возможно.',
-            'anytwo': 'Укажите 2 любых значения S, при которых данное условие выполняется.',
-            'anyone': 'Укажите любое значение S, при котором данное условие выполняется.',
-            'num': 'Укажите количество значений S, при которых данное условие выполняется.'}[form]
+    return {'min': 'Укажите минимальное значение S в той ситуации, когда ',
+            'max': 'Укажите максимальное значение S в той ситуации, когда ',
+            'minmax': 'Укажите в порядке возрастания наименьшее и наибольшее значения S в той ситуации, когда ',
+            'anytwo': 'Укажите 2 любых значения S, когда ',
+            'anyone': 'Укажите любое значение S, когда ',
+            'num': 'Укажите количество значений S, когда '}[form]
 
 def getAnsText(ans='неудП1;WВ1'):
     '''Возвращает условие вопроса'''
@@ -228,30 +228,35 @@ def getPosQuest(answersnum=0):
         retarr = retarr + ['anytwo']
     return choice(retarr)
 
+def getEnumText(partsarr=['f', 'f']):
+    '''возвращает перчисление в формате "..., ..., ... или ..."'''
+    return ', '.join(partsarr[:-1]) + ' или ' + partsarr[-1]
 
 
 class MW(QMainWindow):
     def __init__(self):
         super().__init__()
         self.setFixedSize(800, 800)
+        self.setWindowTitle('Теория Игорей')
         self.dist = 5  # расстояние между полями в пикселях
         self.formarr = []  # массив, где говорится, где в каком формате должен бвть ответ
         
         # поля условия и вопросов
-        self.fields = []
-        for i in range(4):
-            self.fields.append(QTextBrowser(self))
-            self.fields[-1].resize(600, 150)
-            self.fields[-1].move(50, i * (self.fields[-1].height() + self.dist) + self.dist)
-            self.fields[-1].setFont(QFont('Ariel', 10))
-        self.fields[0].resize(700, self.fields[0].height())
+        self.fields = [QTextBrowser(self)]
+        self.fields[0].resize(700, 300)
         self.fields[0].move(50, self.dist)
+        self.fields[0].setFont(QFont('Ariel', 10))
+        for i in range(3):
+            self.fields.append(QTextBrowser(self))
+            self.fields[-1].resize(600, 100)
+            self.fields[-1].move(50, self.fields[-2].y() + self.fields[-2].height() + self.dist)
+            self.fields[-1].setFont(QFont('Ariel', 10))
             
         # эдиты для ответов
         self.ansarr = [QLineEdit(self) for _i in range(3)]
-        for i in range(len(self.ansarr)):
+        for i in range(3):
             self.ansarr[i].resize(100, 50)
-            self.ansarr[i].move(self.fields[i + 1].x() + self.fields[i + 1].width() + self.dist, (1 + i) * (self.fields[-1].height() + self.dist) + self.dist)
+            self.ansarr[i].move(self.fields[i + 1].x() + self.fields[i + 1].width() + self.dist, self.fields[i + 1].y())
         # кнопка проверки ответов
         self.checkbtn = QPushButton(self)
         self.checkbtn.resize(200, 50)
@@ -294,91 +299,72 @@ class MW(QMainWindow):
         else:
             self.bunches = [0]
         self.formarr = []  # для форматов ответа
-        self.questions = [choice(['-WП1;WВ1', 'неудП1;WВ1']), '-WП1;-WВ1;WП2', 'WВ1негарант;WВ2']  # условия для вопросов
+        self.questions = [choice(['-WП1;WВ1'] + ['неудП1;WВ1'] * 9), '-WП1;-WВ1;WП2', 'WВ1негарант;WВ2']  # условия для вопросов
         self.answers = [[] for _i in range(3)]  # массивы с ответами на вопросы
         s = ''  # просто вспомогательная строка
         
         # заполнение первого браузера (с условием)
         s = 'Два игрока, Петя и Ваня, играют в следующую игру. Перед игроками '
         if self.bunchnum == 1:
-            s = s + 'лежит одна куча камней. '
+            s = s + 'лежит куча камней. '
         elif self.bunchnum == 2:
             s = s + 'лежат две кучи камней. '
-        s = s + 'Игроки ходят по очереди, первый ход делает Петя. За один ход игрок может с одной из имеющихся куч выполнить следующие действия: '
+        s = s + 'Игроки ходят по очереди, первый ход делает Петя. За один ход игрок может '
+        actenum = []  # по-русски, что можно делать с кучами
         for act in self.actionarr:
             if act[0] == '+':
-                s = s + 'добавить ' + act[1:] + ', '
+                actenum.append('добавить в ' + ['', 'кучу ', 'одну из куч '][self.bunchnum] + act[1:] + ['', ' камень', ' камня', ' камня', ' камня', ' камней'][int(act[1:])])
             elif act[0] == '*':
-                s = s + 'умножить на ' + act[1:] + ', '
+                actenum.append('увеличить количество камней в ' + ['', 'куче ', 'одной из куч '][self.bunchnum] + 'в ' + act[1:] + ['', ' раз', ' раза', ' раза',' раза',][int(act[1:])])
             elif act == 'another':
-                s = s + 'добавить столько же, сколько сейчас в другой куче, '
-        s = s[:-2] + '. '
-        s = s + 'Игра завершается в тот момент, когда суммарное количество камней в кучах становится не менее ' + str(self.winnum) + '. '
-        s = s + 'Победителем считается игрок, сделавший последний ход. '
+                actenum.append('добавить в одну из куч столько же камней, сколько лежит в другой куче')
+        s = s + getEnumText(actenum) + '. '
+        s = s + 'Например, '
         if self.bunchnum == 1:
-            s = s + 'В начальный момент в единственной куче количество камней было равно S, 1 <= S < ' + str(self.winnum) + '. '
+            n = randint(8, 12)  # просто число для генерации текста, потом удалю
+            s = s + 'имея кучу из ' + str(n) + ' камней, за один ход можно получить кучу из '
+            s = s + getEnumText([str(getArrForAct([n], act, 0)[0]) for act in self.actionarr]) + ' камней. '
+            del n
+        if self.bunchnum == 2:
+            m = randint(8, 12)  # просто число для генерации текста, потом удалю
+            n = choice([i for i in range(8, 13) if i != m])  # просто число для генерации текста, потом удалю
+            s = s + f'пусть в одной куче {m} камней, а в другой {n} камней, такую позицию в игре будем обозначать ({m}, {n}). '
+            s = s + f'Тогда за один ход можно получить одну из {2 * len(self.actionarr)} позиций: '
+            s = s + ', '.join([str(tuple(getArrForAct([m, n], act, 0))) for act in self.actionarr] + [str(tuple(getArrForAct([m, n], act, 0))) for act in self.actionarr])
+            s = s + '. '
+            del m, n
+        s = s + 'Для того чтобы делать ходы, у каждого игрока есть неограниченное количество камней. '
+        s = s + '\nИгра завершается в тот момент, когда ' + ['', 'количество камней в куче', 'суммарное количество камней в кучах'][self.bunchnum] + ' становится не менее ' + str(self.winnum) + '. '
+        s = s + 'Победителем считается игрок, сделавший последний ход, т.е. первым получивший такую позицию, при которой '+ ['', 'в куче', 'суммарно в кучах'][self.bunchnum] + f' будет {self.winnum} или больше камней. '
+        s = s + '\n'
+        if self.bunchnum == 1:
+            s = s + 'В начальный момент в куче количество камней было равно S, 1 <= S < ' + str(self.winnum) + '. '
         elif self.bunchnum == 2 and self.bunches[0] == 0:  # 2 переменные
             s = s + f'В начальный момент в первой куче количество камней было равно S, во второй -- K, 1 <= S < {self.winnum}, 1 <= K < {self.winnum}. '
         elif self.bunchnum == 2:
             s = s + f'В начальный момент в первой куче количество камней было равно {self.bunches[0]}, во второй -- S, 1 <= S < {self.winnum}. '
         self.fields[0].setText(s)
         
-        # делаем варианты ответов к первому вопросу
-        k = 0  # для случаев, когда 2 переменные
-        if self.bunchnum == 2 and self.bunches[0] == 0:
-            k = randint(1, 12)
-        for num in range(1, self.winnum):
-            if self.bunchnum == 1 and isAttemptOk(buncharr=[num], winnum=self.winnum, actionarr=self.actionarr, winreq=self.questions[0]) or\
-               self.bunchnum == 2 and self.bunches[0] == 0 and isAttemptOk(buncharr=[k, num], winnum=self.winnum, actionarr=self.actionarr, winreq=self.questions[0]) or\
-               self.bunchnum == 2 and self.bunches[0] != 0  and isAttemptOk(buncharr=[self.bunches[0], num], winnum=self.winnum, actionarr=self.actionarr, winreq=self.questions[0]):
-                self.answers[0].append(num)
-        self.formarr.append(getPosQuest(len(self.answers[0])))
+        # делаем варианты ответов
+        for i in range(3):
+            k = 0  # для случаев, когда 2 переменные
+            if self.bunchnum == 2 and self.bunches[0] == 0:
+                k = randint(1, 12)
+            for num in range(1, self.winnum):
+                if self.bunchnum == 1 and isAttemptOk(buncharr=[num], winnum=self.winnum, actionarr=self.actionarr, winreq=self.questions[i]) or\
+                   self.bunchnum == 2 and self.bunches[0] == 0 and isAttemptOk(buncharr=[k, num], winnum=self.winnum, actionarr=self.actionarr, winreq=self.questions[i]) or\
+                   self.bunchnum == 2 and self.bunches[0] != 0  and isAttemptOk(buncharr=[self.bunches[0], num], winnum=self.winnum, actionarr=self.actionarr, winreq=self.questions[i]):
+                    self.answers[i].append(num)
+            self.formarr.append(getPosQuest(len(self.answers[i])))
+            
+            # заполняем вопрос
+            s = getAnsFormatText(self.formarr[i])
+            s = s + getAnsText(self.questions[i]) + ' '
+            if self.bunchnum == 2 and self.bunches[0] == 0:
+                s = s + f'K = {k}. '
+            
+            self.fields[i + 1].setText(s)
         
-        # заполняем первый вопрос
-        s = getAnsText(self.questions[0]) + ' '
-        if self.bunchnum == 2 and self.bunches[0] == 0:
-            s = s + f'K = {k}. '
-        s = s + getAnsFormatText(self.formarr[0])
-        self.fields[1].setText(s)
-        
-        # делаем варианты ответов ко второму вопросу
-        k = 0  # для случаев, когда 2 переменные
-        if self.bunchnum == 2 and self.bunches[0] == 0:
-            k = randint(1, 12)
-        for num in range(1, self.winnum):
-            if self.bunchnum == 1 and isAttemptOk(buncharr=[num], winnum=self.winnum, actionarr=self.actionarr, winreq=self.questions[1]) or\
-                   self.bunchnum == 2 and self.bunches[0] == 0 and isAttemptOk(buncharr=[k, num], winnum=self.winnum, actionarr=self.actionarr, winreq=self.questions[1]) or\
-                   self.bunchnum == 2 and self.bunches[0] != 0  and isAttemptOk(buncharr=[self.bunches[0], num], winnum=self.winnum, actionarr=self.actionarr, winreq=self.questions[1]):
-                self.answers[1].append(num)
-        self.formarr.append(getPosQuest(len(self.answers[1])))
-        
-        # заполняем второй вопрос
-        s = getAnsText(self.questions[1]) + ' '
-        if self.bunchnum == 2 and self.bunches[0] == 0:
-            s = s + f'K = {k}. '
-        s = s + getAnsFormatText(self.formarr[1])
-        self.fields[2].setText(s)
-        
-        # делаем варианты ответов к третьему вопросу
-        k = 0  # для случаев, когда 2 переменные
-        if self.bunchnum == 2 and self.bunches[0] == 0:
-            k = randint(1, 12)
-        for num in range(1, self.winnum):
-            if self.bunchnum == 1 and isAttemptOk(buncharr=[num], winnum=self.winnum, actionarr=self.actionarr, winreq=self.questions[2]) or\
-                   self.bunchnum == 2 and self.bunches[0] == 0 and isAttemptOk(buncharr=[k, num], winnum=self.winnum, actionarr=self.actionarr, winreq=self.questions[2]) or\
-                       self.bunchnum == 2 and self.bunches[0] != 0  and isAttemptOk(buncharr=[self.bunches[0], num], winnum=self.winnum, actionarr=self.actionarr, winreq=self.questions[2]):
-                self.answers[2].append(num)
-        self.formarr.append(getPosQuest(len(self.answers[2])))  # выбираем рандомный формат ответ (минимальный, любой, 2 любых и т.д.)
-        
-        # заполняем третий вопрос
-        s = getAnsText(self.questions[2]) + ' '
-        if self.bunchnum == 2 and self.bunches[0] == 0:
-            s = s + f'K = {k}. '
-        s = s + getAnsFormatText(self.formarr[2])
-        self.fields[3].setText(s)
-        
-        for ans in self.answers:
-            print(len(ans), ans)
         
     def check(self):
         '''проверка введённых ответов'''
